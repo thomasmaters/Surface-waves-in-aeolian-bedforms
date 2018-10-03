@@ -6,11 +6,12 @@
 #include <initializer_list>
 
 #include "opencv2/core.hpp"
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+#include "opencv2/highgui.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
 
 #define I_SIZE 200
 #define J_SIZE 200
+#define ITERATIONS 2000
 
 #define D_CON 0.2
 #define BETA_CON 1
@@ -49,31 +50,34 @@ public:
 
     float func_delta_1(float i, float j)
     {
-	std::int32_t x;
-	std::int32_t y;
-	float sum = 0;
-	for (std::int32_t k = -1; k < 2; ++k) {
-	    for (std::int32_t h = -1; h < 2; ++h) {
-		if(k == 0 && h == 0){
-		    continue;
-		}
-		x = i + k;
-		y = j + h;
-		if(x == -1)
-		{
-		    x = I_SIZE - 1;
-		}
-		else if(x == I_SIZE){
-		    x = 0;
-		}
+		std::int32_t x;
+		std::int32_t y;
+		float sum = 0;
+		for (std::int32_t k = -1; k < 2; ++k) {
+			for (std::int32_t h = -1; h < 2; ++h) {
+				if(k == 0 && h == 0){
+					continue;
+				}
+			x = i + k;
+			y = j + h;
+			if(x == -1)
+			{
+				x = I_SIZE - 1;
+			}
+			else if(x == I_SIZE)
+			{
+				x = 0;
+			}
 
-		if(y == -1){
-		    y = J_SIZE - 1;
-		}
-		else if(y == J_SIZE){
-		    y = 0;
-		}
-		sum += a_kl[k + 1][h + 1] * lattice_ij[x][y];
+			if(y == -1)
+			{
+				y = J_SIZE - 1;
+			}
+			else if(y == J_SIZE)
+			{
+				y = 0;
+			}
+			sum += a_kl[k + 1][h + 1] * lattice_ij[x][y];
 	    }
 	}
 
@@ -82,44 +86,47 @@ public:
 
     float func_delta_2(float i, float j)
     {
-	return BETA_CON * std::tanh(lattice_ij[i][j]) - lattice_ij[i][j];
+    	return BETA_CON * std::tanh(lattice_ij[i][j]) - lattice_ij[i][j];
     }
 
     float func_I(float i, float j)
     {
-	return func_delta_1(i,j) + func_delta_2(i,j);
+    	return func_delta_1(i,j) + func_delta_2(i,j);
     }
 
     float func_delta(float i, float j)
     {
-	std::int32_t x;
-	std::int32_t y;
-	float sum = 0;
-	for (std::int32_t k = -1; k < 2; ++k) {
-	    for (std::int32_t h = -1; h < 2; ++h) {
-		if(k == 0 && h == 0){
-		    continue;
-		}
-		x = i + k;
-		y = j + h;
-		if(x == -1)
-		{
-		    x = I_SIZE - 1;
-		}
-		else if(x == I_SIZE){
-		    x = 0;
-		}
+		std::int32_t x;
+		std::int32_t y;
+		float sum = 0;
+		for (std::int32_t k = -1; k < 2; ++k) {
+			for (std::int32_t h = -1; h < 2; ++h) {
+				if(k == 0 && h == 0){
+					continue;
+				}
+				x = i + k;
+				y = j + h;
+				if(x == -1)
+				{
+					x = I_SIZE - 1;
+				}
+				else if(x == I_SIZE)
+				{
+					x = 0;
+				}
 
-		if(y == -1){
-		    y = J_SIZE - 1;
+				if(y == -1)
+				{
+					y = J_SIZE - 1;
+				}
+				else if(y == J_SIZE)
+				{
+					y = 0;
+				}
+				sum += (a_kl[k + 1][h + 1] * func_I(x, y));
+			}
 		}
-		else if(y == J_SIZE){
-		    y = 0;
-		}
-		sum += (a_kl[k + 1][h + 1] * func_I(x, y));
-	    }
-	}
-	return func_I(i,j) - sum;
+		return func_I(i,j) - sum;
     }
 
     std::array<std::array<float, J_SIZE>, I_SIZE> lattice_ij;
@@ -137,28 +144,28 @@ int main(int argc, char **argv) {
 	cv::Mat image2(I_SIZE, J_SIZE, CV_8U);
     SandRippel rippel_sim;
 
-    for (int i = 0; i < 2000; ++i)
+    for (int i = 0; i < ITERATIONS; ++i)
     {
 		std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-		std::array<std::array<float, J_SIZE>, I_SIZE>& kaas = rippel_sim.nextTick();
+		std::array<std::array<float, J_SIZE>, I_SIZE>& rippel_update = rippel_sim.nextTick();
 
 		float lowest = 0;
 		float highest = 0;
 		for (int k = 0; k < I_SIZE; ++k) {
 			for (int j = 0; j < J_SIZE; ++j) {
-				if(kaas[k][j] < lowest)
+				if(rippel_update[k][j] < lowest)
 				{
-					lowest = kaas[k][j];
+					lowest = rippel_update[k][j];
 				}
-				if(kaas[k][j] > highest)
+				if(rippel_update[k][j] > highest)
 				{
-					highest = kaas[k][j];
+					highest = rippel_update[k][j];
 				}
 			}
 		}
 		for (int k = 0; k < I_SIZE; ++k) {
 			for (int j = 0; j < J_SIZE; ++j) {
-				image.row(k).col(j) = static_cast<uint8_t>(mapValue(kaas[k][j], lowest, highest, 0, 255));
+				image.row(k).col(j) = static_cast<uint8_t>(mapValue(rippel_update[k][j], lowest, highest, 0, 255));
 			}
 		}
 		cv::imwrite( "C:\\Projecten\\Eclipse-workspace\\SandRippelSimulation\\Debug\\images\\gray\\" + std::to_string(i) + "_img.jpg", image );
