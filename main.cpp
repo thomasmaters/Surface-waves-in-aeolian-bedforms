@@ -9,17 +9,22 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 
+#include "../MultibeamDataProcessor/src/Communication/UDP/UDPConnection.hpp"
+#include "../MultibeamDataProcessor/src/Communication/IOHandler.hpp"
+#include "../MultibeamDataProcessor/src/Messages/SensorMessage.hpp"
+
 #define I_SIZE 200
 #define J_SIZE 200
+#define TOTAL_SIZE I_SIZE * J_SIZE
 #define ITERATIONS 2000
 
 #define D_CON 0.2
 #define BETA_CON 1
 
 const std::array<std::array<float,3>,3> a_kl{{
-{{0.55,0.1,0.05}},
-{{0.1,0.0,0.05}},
-{{0.05,0.05,0.05}}}};
+{{0.1,0.05,0.05}},
+{{0.55,0.0,0.05}},
+{{0.1,0.05,0.05}}}};
 
 class SandRippel
 {
@@ -132,6 +137,23 @@ public:
     std::array<std::array<float, J_SIZE>, I_SIZE> lattice_ij;
 };
 
+class RippelData : public Messages::SensorMessage
+{
+public:
+	RippelData(): Messages::SensorMessage(4 + TOTAL_SIZE)
+	{
+	    data_[1] = (I_SIZE >> 8);
+	    data_[0] = (I_SIZE & 0xFF);
+	    data_[3] = (J_SIZE >> 8);
+	    data_[2] = (J_SIZE & 0xFF);
+	}
+
+	virtual ~RippelData()
+	{
+
+	}
+};
+
 long mapValue(float x, float in_min, float in_max, float out_min, float out_max)
 {
 	if(x < in_min){return out_min;}
@@ -143,8 +165,12 @@ int main(int argc, char **argv) {
 	cv::Mat image(I_SIZE, J_SIZE, CV_8U);
 	cv::Mat image2(I_SIZE, J_SIZE, CV_8U);
     SandRippel rippel_sim;
+    Communication::UDP::UDPServerClient client(Communication::IOHandler::getInstance().getIOService(), "127.0.0.1", "1234", "1233");
+    Communication::IOHandler::getInstance().startIOService();
 
-    for (int i = 0; i < ITERATIONS; ++i)
+    RippelData data;
+
+    for (int i = 0; i < 10000; ++i)
     {
 		std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 		std::array<std::array<float, J_SIZE>, I_SIZE>& rippel_update = rippel_sim.nextTick();
@@ -165,15 +191,17 @@ int main(int argc, char **argv) {
 		}
 		for (int k = 0; k < I_SIZE; ++k) {
 			for (int j = 0; j < J_SIZE; ++j) {
-				image.row(k).col(j) = static_cast<uint8_t>(mapValue(rippel_update[k][j], lowest, highest, 0, 255));
+				data.getData()[4 + k * I_SIZE + j] = static_cast<uint8_t>(mapValue(rippel_update[k][j], lowest, highest, 0, 255));
 			}
 		}
-		cv::imwrite( "C:\\Projecten\\Eclipse-workspace\\SandRippelSimulation\\Debug\\images\\gray\\" + std::to_string(i) + "_img.jpg", image );
+		client.sendRequest(data, (std::size_t)0, false);
+		//cv::imwrite( "C:\\Projecten\\Eclipse-workspace\\SandRippelSimulation\\Debug\\images\\gray\\" + std::to_string(i) + "_img.jpg", image );
 
 		std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::milliseconds >( t2 - t1 ).count();
 		std::cout << "Iteration: " << i << " Duration: " << duration << " high: " << highest << " lowest: " << lowest << std::endl;
     }
+    Communication::IOHandler::getInstance().stopIOService();
     return 0;
 }
 
