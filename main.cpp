@@ -17,16 +17,59 @@
 #define J_SIZE 200
 #define TOTAL_SIZE I_SIZE * J_SIZE
 #define ITERATIONS 2000
+#define SIMULATION_SETTINGS_MESSAGE_SIZE 16
+#define SS_STRENGTH_OFFSET 1
+#define SS_DIRECTION_LOW 5
+#define SS_DIRECTION_HIGH 6
+#define SS_D_OFFSET 7
+#define SS_BETA_OFFSET 11
 
 #define D_CON 0.2
 #define BETA_CON 1
 
-const std::array<std::array<float,3>,3> a_kl{{
-{{0.1,0.05,0.05}},
-{{0.55,0.0,0.05}},
-{{0.1,0.05,0.05}}}};
+#include <cstring>
 
-class SandRippel
+class SimulationSettings: public Messages::SensorMessage
+{
+public:
+	SimulationSettings(): Messages::SensorMessage(SIMULATION_SETTINGS_MESSAGE_SIZE)
+	{
+
+	}
+
+	SimulationSettings(uint8_t* data, std::chrono::milliseconds::rep time = 0): Messages::SensorMessage(data, SIMULATION_SETTINGS_MESSAGE_SIZE, time)
+	{
+
+	}
+
+	float getStrength()
+	{
+		float value;
+		std::memcpy(&value, &(data_[SS_STRENGTH_OFFSET]), sizeof(value));
+		return value;
+	}
+
+	float getD()
+	{
+		float value;
+		std::memcpy(&value, &(data_[SS_D_OFFSET]), sizeof(value));
+		return value;
+	}
+
+	float getBeta()
+	{
+		float value;
+		std::memcpy(&value, &(data_[SS_BETA_OFFSET]), sizeof(value));
+		return value;
+	}
+
+	uint16_t getDirection()
+	{
+		return static_cast<uint16_t>((data_[SS_DIRECTION_HIGH] << 8) | data_[SS_DIRECTION_LOW]);
+	}
+};
+
+class SandRippel: public Communication::RequestHandler
 {
 public:
     SandRippel()
@@ -43,14 +86,83 @@ public:
 
     }
 
+    virtual Messages::SensorMessage handleRequest(uint8_t* data, std::size_t length, std::chrono::milliseconds::rep time = 0)
+    {
+    	if(length == SIMULATION_SETTINGS_MESSAGE_SIZE)
+    	{
+    		SimulationSettings settings(data, time);
+    		std::cout << "Direction: " << settings.getDirection() << " Strength: " << settings.getStrength() << " D:" << settings.getD() << " Beta:" << settings.getBeta() << std::endl;
+
+    		d = settings.getD();
+    		beta = settings.getBeta();
+
+    		a_kl[1][0] = settings.getStrength();
+    		a_kl[0][0] = (1.0/6) * (1 - a_kl[1][0]);
+    		a_kl[2][0] = (1.0/6) * (1 - a_kl[1][0]);
+    		a_kl[0][1] = ((2.0/3) * (1 - a_kl[1][0]))/5;
+    		a_kl[0][2] = ((2.0/3) * (1 - a_kl[1][0]))/5;
+    		a_kl[1][2] = ((2.0/3) * (1 - a_kl[1][0]))/5;
+    		a_kl[2][2] = ((2.0/3) * (1 - a_kl[1][0]))/5;
+    		a_kl[2][1] = ((2.0/3) * (1 - a_kl[1][0]))/5;
+
+    		rotateArrayValues(std::ceil(static_cast<float>(settings.getDirection()) / 45.0));
+    		bleedArrayValues(static_cast<float>((settings.getDirection() % 45))/45);
+    	}
+    	else
+    	{
+    		std::cout << "Length mismatch expected: " << SIMULATION_SETTINGS_MESSAGE_SIZE << " got: " << length << std::endl;
+    	}
+    	return Messages::SensorMessage(0);
+    }
+
+    void bleedArrayValues(float percentage_to_right)
+    {
+    	std::cout << "Percentage to right: " << percentage_to_right << std::endl;
+    	if(percentage_to_right == 0)
+    	{
+    		return;
+    	}
+    	std::array<std::array<float,3>,3> temp{{{{0,0,0}},{{0,0,0}},{{0,0,0}}}};
+    	temp[0][0] = a_kl[0][1] * (1.0 - percentage_to_right) + a_kl[0][0] * percentage_to_right;
+    	temp[0][1] = a_kl[0][2] * (1.0 - percentage_to_right) + a_kl[0][1] * percentage_to_right;
+    	temp[0][2] = a_kl[1][2] * (1.0 - percentage_to_right) + a_kl[0][2] * percentage_to_right;
+    	temp[1][2] = a_kl[2][2] * (1.0 - percentage_to_right) + a_kl[1][2] * percentage_to_right;
+    	temp[2][2] = a_kl[2][1] * (1.0 - percentage_to_right) + a_kl[2][2] * percentage_to_right;
+    	temp[2][1] = a_kl[2][0] * (1.0 - percentage_to_right) + a_kl[2][1] * percentage_to_right;
+    	temp[2][0] = a_kl[1][0] * (1.0 - percentage_to_right) + a_kl[2][0] * percentage_to_right;
+    	temp[1][0] = a_kl[0][0] * (1.0 - percentage_to_right) + a_kl[1][0] * percentage_to_right;
+    	a_kl = temp;
+    }
+
+    void rotateArrayValues(std::size_t amount)
+    {
+    	std::cout << "amount rotate: " << amount << std::endl;
+    	if(amount == 0)
+    	{
+    		return;
+    	}
+		float temp;
+    	for (std::size_t i = 0; i < amount; ++i) {
+    		temp = a_kl[0][0];
+    		a_kl[0][0] = a_kl[1][0];
+    		a_kl[1][0] = a_kl[2][0];
+    		a_kl[2][0] = a_kl[2][1];
+    		a_kl[2][1] = a_kl[2][2];
+    		a_kl[2][2] = a_kl[1][2];
+    		a_kl[1][2] = a_kl[0][2];
+    		a_kl[0][2] = a_kl[0][1];
+    		a_kl[0][1] = temp;
+		}
+    }
+
     std::array<std::array<float, J_SIZE>, I_SIZE>& nextTick()
     {
-	for (std::size_t i = 0; i < I_SIZE; ++i) {
-	    for (std::size_t j = 0; j < J_SIZE; ++j) {
-		lattice_ij[i][j] += func_delta(i,j);
-	    }
-	}
-	return lattice_ij;
+		for (std::size_t i = 0; i < I_SIZE; ++i) {
+			for (std::size_t j = 0; j < J_SIZE; ++j) {
+				lattice_ij[i][j] += func_delta(i,j);
+			}
+		}
+		return lattice_ij;
     }
 
     float func_delta_1(float i, float j)
@@ -63,35 +175,34 @@ public:
 				if(k == 0 && h == 0){
 					continue;
 				}
-			x = i + k;
-			y = j + h;
-			if(x == -1)
-			{
-				x = I_SIZE - 1;
-			}
-			else if(x == I_SIZE)
-			{
-				x = 0;
-			}
+				x = i + k;
+				y = j + h;
+				if(x == -1)
+				{
+					x = I_SIZE - 1;
+				}
+				else if(x == I_SIZE)
+				{
+					x = 0;
+				}
 
-			if(y == -1)
-			{
-				y = J_SIZE - 1;
+				if(y == -1)
+				{
+					y = J_SIZE - 1;
+				}
+				else if(y == J_SIZE)
+				{
+					y = 0;
+				}
+				sum += a_kl[k + 1][h + 1] * lattice_ij[x][y];
 			}
-			else if(y == J_SIZE)
-			{
-				y = 0;
-			}
-			sum += a_kl[k + 1][h + 1] * lattice_ij[x][y];
-	    }
-	}
-
-	return D_CON * (sum - lattice_ij[i][j]);
+		}
+		return d * (sum - lattice_ij[i][j]);
     }
 
     float func_delta_2(float i, float j)
     {
-    	return BETA_CON * std::tanh(lattice_ij[i][j]) - lattice_ij[i][j];
+    	return beta * std::tanh(lattice_ij[i][j]) - lattice_ij[i][j];
     }
 
     float func_I(float i, float j)
@@ -135,6 +246,13 @@ public:
     }
 
     std::array<std::array<float, J_SIZE>, I_SIZE> lattice_ij;
+    std::array<std::array<float,3>,3> a_kl{{
+    {{0.1,0.05,0.05}},
+    {{0.55,0.0,0.05}},
+    {{0.1,0.05,0.05}}}};
+
+    float d = D_CON;
+    float beta = BETA_CON;
 };
 
 class RippelData : public Messages::SensorMessage
@@ -162,10 +280,9 @@ long mapValue(float x, float in_min, float in_max, float out_min, float out_max)
 }
 
 int main(int argc, char **argv) {
-	cv::Mat image(I_SIZE, J_SIZE, CV_8U);
-	cv::Mat image2(I_SIZE, J_SIZE, CV_8U);
     SandRippel rippel_sim;
     Communication::UDP::UDPServerClient client(Communication::IOHandler::getInstance().getIOService(), "127.0.0.1", "1234", "1233");
+    client.addRequestHandler(std::shared_ptr<Communication::RequestHandler>(&rippel_sim));
     Communication::IOHandler::getInstance().startIOService();
 
     RippelData data;
@@ -195,11 +312,10 @@ int main(int argc, char **argv) {
 			}
 		}
 		client.sendRequest(data, (std::size_t)0, false);
-		//cv::imwrite( "C:\\Projecten\\Eclipse-workspace\\SandRippelSimulation\\Debug\\images\\gray\\" + std::to_string(i) + "_img.jpg", image );
 
 		std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::milliseconds >( t2 - t1 ).count();
-		std::cout << "Iteration: " << i << " Duration: " << duration << " high: " << highest << " lowest: " << lowest << std::endl;
+//		std::cout << "Iteration: " << i << " Duration: " << duration << " high: " << highest << " lowest: " << lowest << std::endl;
     }
     Communication::IOHandler::getInstance().stopIOService();
     return 0;
