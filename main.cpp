@@ -16,7 +16,7 @@
 #define I_SIZE 200
 #define J_SIZE 200
 #define TOTAL_SIZE I_SIZE * J_SIZE
-#define ITERATIONS 2000
+#define ITERATIONS 10000
 #define SIMULATION_SETTINGS_MESSAGE_SIZE 16
 #define SS_STRENGTH_OFFSET 1
 #define SS_DIRECTION_LOW 5
@@ -117,7 +117,6 @@ public:
 
     void bleedArrayValues(float percentage_to_right)
     {
-    	std::cout << "Percentage to right: " << percentage_to_right << std::endl;
     	if(percentage_to_right == 0)
     	{
     		return;
@@ -136,7 +135,6 @@ public:
 
     void rotateArrayValues(std::size_t amount)
     {
-    	std::cout << "amount rotate: " << amount << std::endl;
     	if(amount == 0)
     	{
     		return;
@@ -280,6 +278,11 @@ long mapValue(float x, float in_min, float in_max, float out_min, float out_max)
 }
 
 int main(int argc, char **argv) {
+	std::size_t iteraties = ITERATIONS;
+	if(argc == 2)
+	{
+		iteraties = std::atoi(argv[1]);
+	}
     SandRippel rippel_sim;
     Communication::UDP::UDPServerClient client(Communication::IOHandler::getInstance().getIOService(), "127.0.0.1", "1234", "1233");
     client.addRequestHandler(std::shared_ptr<Communication::RequestHandler>(&rippel_sim));
@@ -287,15 +290,15 @@ int main(int argc, char **argv) {
 
     RippelData data;
 
-    for (int i = 0; i < 10000; ++i)
+    for (std::size_t i = 0; i < iteraties; ++i)
     {
 		std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 		std::array<std::array<float, J_SIZE>, I_SIZE>& rippel_update = rippel_sim.nextTick();
 
 		float lowest = 0;
 		float highest = 0;
-		for (int k = 0; k < I_SIZE; ++k) {
-			for (int j = 0; j < J_SIZE; ++j) {
+		for (std::size_t k = 0; k < I_SIZE; ++k) {
+			for (std::size_t j = 0; j < J_SIZE; ++j) {
 				if(rippel_update[k][j] < lowest)
 				{
 					lowest = rippel_update[k][j];
@@ -306,8 +309,8 @@ int main(int argc, char **argv) {
 				}
 			}
 		}
-		for (int k = 0; k < I_SIZE; ++k) {
-			for (int j = 0; j < J_SIZE; ++j) {
+		for (std::size_t k = 0; k < I_SIZE; ++k) {
+			for (std::size_t j = 0; j < J_SIZE; ++j) {
 				data.getData()[4 + k * I_SIZE + j] = static_cast<uint8_t>(mapValue(rippel_update[k][j], lowest, highest, 0, 255));
 			}
 		}
@@ -315,7 +318,7 @@ int main(int argc, char **argv) {
 
 		std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::milliseconds >( t2 - t1 ).count();
-//		std::cout << "Iteration: " << i << " Duration: " << duration << " high: " << highest << " lowest: " << lowest << std::endl;
+		std::cout << "Iteration: " << i << " Duration: " << duration << " high: " << highest << " lowest: " << lowest << std::endl;
     }
     Communication::IOHandler::getInstance().stopIOService();
     return 0;
