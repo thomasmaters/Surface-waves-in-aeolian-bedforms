@@ -10,7 +10,7 @@ The C++ implementation is a lot better ( +- 30ms for a 200x200 grid).
 - With minimal -std=c++11
 - With Opencv 2.0 or later
 
-# Link instructions against:
+# Link instructions:
 - libopencv_core
 - libopencv_highgui
 - libopencv_imgproc
