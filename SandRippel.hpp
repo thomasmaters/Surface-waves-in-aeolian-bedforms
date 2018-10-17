@@ -13,6 +13,8 @@
 #include "../MultibeamDataProcessor/src/Communication/RequestResponseHandler.hpp"
 #include "SimulationSettings.hpp"
 
+namespace Simulation
+{
 class SandRippel: public Communication::RequestHandler
 {
 public:
@@ -20,7 +22,7 @@ public:
     {
 		for (int i = 0; i < I_SIZE; ++i) {
 			for (int j = 0; j < J_SIZE; ++j) {
-				lattice_ij[i][j] = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) / 20.0;
+				lattice_ij_[i][j] = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) / 20.0;
 			}
 		}
     }
@@ -37,25 +39,25 @@ public:
      * @param time
      * @return
      */
-    virtual Messages::SensorMessage handleRequest(uint8_t* data, std::size_t length, std::chrono::milliseconds::rep time = 0)
+    virtual Messages::SensorMessage handleRequest(uint8_t* data, std::size_t length, std::chrono::milliseconds::rep time = 0) override
     {
     	//Is it a Simulation settings message.
     	if(length == SIMULATION_SETTINGS_MESSAGE_SIZE)
     	{
-    		SimulationSettings settings(data, time);
+    		Messages::SimulationSettings settings(data, time);
     		std::cout << "Direction: " << settings.getDirection() << " Strength: " << settings.getStrength() << " D:" << settings.getD() << " Beta:" << settings.getBeta() << std::endl;
 
-    		d = settings.getD();
-    		beta = settings.getBeta();
+    		d_ = settings.getD();
+    		beta_ = settings.getBeta();
 
-    		a_kl[1][0] = settings.getStrength();
-    		a_kl[0][0] = (1.0/6) * (1 - a_kl[1][0]);
-    		a_kl[2][0] = (1.0/6) * (1 - a_kl[1][0]);
-    		a_kl[0][1] = ((2.0/3) * (1 - a_kl[1][0]))/5;
-    		a_kl[0][2] = ((2.0/3) * (1 - a_kl[1][0]))/5;
-    		a_kl[1][2] = ((2.0/3) * (1 - a_kl[1][0]))/5;
-    		a_kl[2][2] = ((2.0/3) * (1 - a_kl[1][0]))/5;
-    		a_kl[2][1] = ((2.0/3) * (1 - a_kl[1][0]))/5;
+    		a_kl_[1][0] = settings.getStrength();
+    		a_kl_[0][0] = (1.0/6) * (1 - a_kl_[1][0]);
+    		a_kl_[2][0] = (1.0/6) * (1 - a_kl_[1][0]);
+    		a_kl_[0][1] = ((2.0/3) * (1 - a_kl_[1][0]))/5;
+    		a_kl_[0][2] = ((2.0/3) * (1 - a_kl_[1][0]))/5;
+    		a_kl_[1][2] = ((2.0/3) * (1 - a_kl_[1][0]))/5;
+    		a_kl_[2][2] = ((2.0/3) * (1 - a_kl_[1][0]))/5;
+    		a_kl_[2][1] = ((2.0/3) * (1 - a_kl_[1][0]))/5;
 
     		rotateArrayValues(std::ceil(static_cast<float>(settings.getDirection()) / 45.0));
     		bleedArrayValues(static_cast<float>((settings.getDirection() % 45))/45);
@@ -78,15 +80,15 @@ public:
     		return;
     	}
     	std::array<std::array<float,3>,3> temp{{{{0,0,0}},{{0,0,0}},{{0,0,0}}}};
-    	temp[0][0] = a_kl[0][1] * (1.0 - percentage_to_right) + a_kl[0][0] * percentage_to_right;
-    	temp[0][1] = a_kl[0][2] * (1.0 - percentage_to_right) + a_kl[0][1] * percentage_to_right;
-    	temp[0][2] = a_kl[1][2] * (1.0 - percentage_to_right) + a_kl[0][2] * percentage_to_right;
-    	temp[1][2] = a_kl[2][2] * (1.0 - percentage_to_right) + a_kl[1][2] * percentage_to_right;
-    	temp[2][2] = a_kl[2][1] * (1.0 - percentage_to_right) + a_kl[2][2] * percentage_to_right;
-    	temp[2][1] = a_kl[2][0] * (1.0 - percentage_to_right) + a_kl[2][1] * percentage_to_right;
-    	temp[2][0] = a_kl[1][0] * (1.0 - percentage_to_right) + a_kl[2][0] * percentage_to_right;
-    	temp[1][0] = a_kl[0][0] * (1.0 - percentage_to_right) + a_kl[1][0] * percentage_to_right;
-    	a_kl = temp;
+    	temp[0][0] = a_kl_[0][1] * (1.0 - percentage_to_right) + a_kl_[0][0] * percentage_to_right;
+    	temp[0][1] = a_kl_[0][2] * (1.0 - percentage_to_right) + a_kl_[0][1] * percentage_to_right;
+    	temp[0][2] = a_kl_[1][2] * (1.0 - percentage_to_right) + a_kl_[0][2] * percentage_to_right;
+    	temp[1][2] = a_kl_[2][2] * (1.0 - percentage_to_right) + a_kl_[1][2] * percentage_to_right;
+    	temp[2][2] = a_kl_[2][1] * (1.0 - percentage_to_right) + a_kl_[2][2] * percentage_to_right;
+    	temp[2][1] = a_kl_[2][0] * (1.0 - percentage_to_right) + a_kl_[2][1] * percentage_to_right;
+    	temp[2][0] = a_kl_[1][0] * (1.0 - percentage_to_right) + a_kl_[2][0] * percentage_to_right;
+    	temp[1][0] = a_kl_[0][0] * (1.0 - percentage_to_right) + a_kl_[1][0] * percentage_to_right;
+    	a_kl_ = temp;
     }
 
     /**
@@ -101,15 +103,15 @@ public:
     	}
 		float temp;
     	for (std::size_t i = 0; i < amount; ++i) {
-    		temp = a_kl[0][0];
-    		a_kl[0][0] = a_kl[1][0];
-    		a_kl[1][0] = a_kl[2][0];
-    		a_kl[2][0] = a_kl[2][1];
-    		a_kl[2][1] = a_kl[2][2];
-    		a_kl[2][2] = a_kl[1][2];
-    		a_kl[1][2] = a_kl[0][2];
-    		a_kl[0][2] = a_kl[0][1];
-    		a_kl[0][1] = temp;
+    		temp = a_kl_[0][0];
+    		a_kl_[0][0] = a_kl_[1][0];
+    		a_kl_[1][0] = a_kl_[2][0];
+    		a_kl_[2][0] = a_kl_[2][1];
+    		a_kl_[2][1] = a_kl_[2][2];
+    		a_kl_[2][2] = a_kl_[1][2];
+    		a_kl_[1][2] = a_kl_[0][2];
+    		a_kl_[0][2] = a_kl_[0][1];
+    		a_kl_[0][1] = temp;
 		}
     }
 
@@ -121,13 +123,19 @@ public:
     {
 		for (std::size_t i = 0; i < I_SIZE; ++i) {
 			for (std::size_t j = 0; j < J_SIZE; ++j) {
-				lattice_ij[i][j] += func_delta(i,j);
+				lattice_ij_[i][j] += funcDelta(i,j);
 			}
 		}
-		return lattice_ij;
+		return lattice_ij_;
     }
 
-    float func_delta_1(float i, float j)
+    /**
+     * Function based on paper.
+     * @param i
+     * @param j
+     * @return
+     */
+    float funcDelta1(float i, float j)
     {
 		std::int32_t x;
 		std::int32_t y;
@@ -156,23 +164,41 @@ public:
 				{
 					y = 0;
 				}
-				sum += a_kl[k + 1][h + 1] * lattice_ij[x][y];
+				sum += a_kl_[k + 1][h + 1] * lattice_ij_[x][y];
 			}
 		}
-		return d * (sum - lattice_ij[i][j]);
+		return d_ * (sum - lattice_ij_[i][j]);
     }
 
-    float func_delta_2(float i, float j)
+    /**
+     * Function based on paper.
+     * @param i
+     * @param j
+     * @return
+     */
+    float funcDelta2(float i, float j)
     {
-    	return beta * std::tanh(lattice_ij[i][j]) - lattice_ij[i][j];
+    	return beta_ * std::tanh(lattice_ij_[i][j]) - lattice_ij_[i][j];
     }
 
-    float func_I(float i, float j)
+    /**
+     * Function based on paper.
+     * @param i
+     * @param j
+     * @return
+     */
+    float funcI(float i, float j)
     {
-    	return func_delta_1(i,j) + func_delta_2(i,j);
+    	return funcDelta1(i,j) + funcDelta2(i,j);
     }
 
-    float func_delta(float i, float j)
+    /**
+     * Function based on paper.
+     * @param i
+     * @param j
+     * @return
+     */
+    float funcDelta(float i, float j)
     {
 		std::int32_t x;
 		std::int32_t y;
@@ -201,22 +227,22 @@ public:
 				{
 					y = 0;
 				}
-				sum += (a_kl[k + 1][h + 1] * func_I(x, y));
+				sum += (a_kl_[k + 1][h + 1] * funcI(x, y));
 			}
 		}
-		return func_I(i,j) - sum;
+		return funcI(i,j) - sum;
     }
 
-    std::array<std::array<float, J_SIZE>, I_SIZE> lattice_ij;
-    std::array<std::array<float,3>,3> a_kl{{
+    std::array<std::array<float, J_SIZE>, I_SIZE> lattice_ij_;
+    std::array<std::array<float,3>,3> a_kl_{{
     {{0.1,0.05,0.05}},
     {{0.55,0.0,0.05}},
     {{0.1,0.05,0.05}}}};
 
-    float d = D_CON;
-    float beta = BETA_CON;
+    float d_ = D_CON;
+    float beta_ = BETA_CON;
 };
-
+} //Namespace Simulation.
 
 
 #endif /* SANDRIPPEL_HPP_ */

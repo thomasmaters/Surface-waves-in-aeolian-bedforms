@@ -10,7 +10,8 @@
 #define SIMULATIONSETTINGS_HPP_
 
 #include "../MultibeamDataProcessor/src/Messages/SensorMessage.hpp"
-
+namespace Messages
+{
 class SimulationSettings: public Messages::SensorMessage
 {
 public:
@@ -50,5 +51,5 @@ public:
 		return static_cast<uint16_t>((data_[SS_DIRECTION_HIGH] << 8) | data_[SS_DIRECTION_LOW]);
 	}
 };
-
+} //Namespace Messages.
 #endif /* SIMULATIONSETTINGS_HPP_ */

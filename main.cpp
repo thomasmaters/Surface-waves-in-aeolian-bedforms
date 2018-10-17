@@ -38,12 +38,12 @@ int main(int argc, char **argv) {
 	{
 		iteraties = std::atoi(argv[1]);
 	}
-    SandRippel rippel_sim;
+    Simulation::SandRippel rippel_sim;
     Communication::UDP::UDPServerClient client(Communication::IOHandler::getInstance().getIOService(), "127.0.0.1", "1234", "1233");
     client.addRequestHandler(std::shared_ptr<Communication::RequestHandler>(&rippel_sim));
     Communication::IOHandler::getInstance().startIOService();
 
-    RippelData data;
+    Messages::RippelData data;
 
     for (std::size_t i = 0; i < iteraties; ++i)
     {

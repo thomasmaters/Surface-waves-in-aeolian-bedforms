@@ -10,7 +10,8 @@
 #define RIPPELDATA_HPP_
 
 #include "../MultibeamDataProcessor/src/Messages/SensorMessage.hpp"
-
+namespace Messages
+{
 class RippelData : public Messages::SensorMessage
 {
 public:
@@ -28,6 +29,7 @@ public:
 	}
 };
 
+} //Namespace Messages
 
 
 #endif /* RIPPELDATA_HPP_ */
