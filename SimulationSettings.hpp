@@ -9,6 +9,13 @@
 #ifndef SIMULATIONSETTINGS_HPP_
 #define SIMULATIONSETTINGS_HPP_
 
+#define SIMULATION_SETTINGS_MESSAGE_SIZE 16
+#define SS_STRENGTH_OFFSET 1
+#define SS_DIRECTION_LOW 5
+#define SS_DIRECTION_HIGH 6
+#define SS_D_OFFSET 7
+#define SS_BETA_OFFSET 11
+
 #include "../MultibeamDataProcessor/src/Messages/SensorMessage.hpp"
 namespace Messages
 {

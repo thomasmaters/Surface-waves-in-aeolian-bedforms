@@ -13,7 +13,7 @@
 #include "../MultibeamDataProcessor/src/Communication/RequestResponseHandler.hpp"
 #include "SimulationSettings.hpp"
 
-namespace Simulation
+namespace Simulation::RippelSimulation
 {
 class SandRippel: public Communication::RequestHandler
 {
@@ -52,12 +52,12 @@ public:
 
     		a_kl_[1][0] = settings.getStrength();
     		a_kl_[0][0] = (1.0/6) * (1 - a_kl_[1][0]);
-    		a_kl_[2][0] = (1.0/6) * (1 - a_kl_[1][0]);
+    		a_kl_[2][0] = a_kl_[0][0];
     		a_kl_[0][1] = ((2.0/3) * (1 - a_kl_[1][0]))/5;
-    		a_kl_[0][2] = ((2.0/3) * (1 - a_kl_[1][0]))/5;
-    		a_kl_[1][2] = ((2.0/3) * (1 - a_kl_[1][0]))/5;
-    		a_kl_[2][2] = ((2.0/3) * (1 - a_kl_[1][0]))/5;
-    		a_kl_[2][1] = ((2.0/3) * (1 - a_kl_[1][0]))/5;
+    		a_kl_[0][2] = a_kl_[0][1];
+    		a_kl_[1][2] = a_kl_[0][1];
+    		a_kl_[2][2] = a_kl_[0][1];
+    		a_kl_[2][1] = a_kl_[0][1];
 
     		rotateArrayValues(std::ceil(static_cast<float>(settings.getDirection()) / 45.0));
     		bleedArrayValues(static_cast<float>((settings.getDirection() % 45))/45);

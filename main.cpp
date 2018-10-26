@@ -2,12 +2,6 @@
 #define J_SIZE 200
 #define TOTAL_SIZE I_SIZE * J_SIZE
 #define ITERATIONS 10000
-#define SIMULATION_SETTINGS_MESSAGE_SIZE 16
-#define SS_STRENGTH_OFFSET 1
-#define SS_DIRECTION_LOW 5
-#define SS_DIRECTION_HIGH 6
-#define SS_D_OFFSET 7
-#define SS_BETA_OFFSET 11
 
 #define D_CON 0.2
 #define BETA_CON 1
@@ -38,7 +32,7 @@ int main(int argc, char **argv) {
 	{
 		iteraties = std::atoi(argv[1]);
 	}
-    Simulation::SandRippel rippel_sim;
+    Simulation::RippelSimulation::SandRippel rippel_sim;
     Communication::UDP::UDPServerClient client(Communication::IOHandler::getInstance().getIOService(), "127.0.0.1", "1234", "1233");
     client.addRequestHandler(std::shared_ptr<Communication::RequestHandler>(&rippel_sim));
     Communication::IOHandler::getInstance().startIOService();
